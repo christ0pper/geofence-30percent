@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow public read and write access for geofence data
+    // In a production environment, you should implement proper authentication
+    match /geofences/{document=**} {
+      allow read, write: if true;
+    }
+    
+    // Allow public read and write access for device tracking
+    match /devices/{document=**} {
+      allow read, write: if true;
+    }
+    
+    // Default deny for all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
