@@ -6,8 +6,8 @@ import { createServer } from "./server";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
-    port: 8080,
+    host: "0.0.0.0", // Listen on all available network interfaces
+    port: 8082, // Updated to match Arduino code
     fs: {
       allow: ["./client", "./shared", "."],
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "server/**"],

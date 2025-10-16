@@ -3,6 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-draw';
+import type { IoTDeviceData } from '@/types/iot';
 
 interface GeofenceData {
   type: 'circle' | 'polygon';
@@ -23,9 +24,10 @@ interface MapViewProps {
   deleteGeofenceId: string | null;
   highlightGeofenceId: string | null;
   onMapReady: () => void;
+  onIoTDataUpdate?: (data: IoTDeviceData) => void;
 }
 
-const MapView = ({ drawMode, onGeofenceCreated, onGeofencesChange, clearTrigger, deleteGeofenceId, highlightGeofenceId, onMapReady }: MapViewProps) => {
+const MapView = ({ drawMode, onGeofenceCreated, onGeofencesChange, clearTrigger, deleteGeofenceId, highlightGeofenceId, onMapReady, onIoTDataUpdate }: MapViewProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
   const activeDrawerRef = useRef<L.Draw.Circle | L.Draw.Polygon | null>(null);
@@ -34,6 +36,9 @@ const MapView = ({ drawMode, onGeofenceCreated, onGeofencesChange, clearTrigger,
   const watchIdRef = useRef<number | null>(null);
   const [geofences, setGeofences] = useState<GeofenceData[]>([]);
   const originalStylesRef = useRef<Map<string, any>>(new Map());
+  // Add refs for IoT marker and data polling
+  const iotMarkerRef = useRef<L.Marker | null>(null);
+  const iotPollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -223,6 +228,68 @@ const MapView = ({ drawMode, onGeofenceCreated, onGeofencesChange, clearTrigger,
         });
       };
 
+      // Create custom red dot icon for IoT device
+      const createIoTIcon = () => {
+        return L.divIcon({
+          className: 'iot-marker',
+          html: `
+            <div style="
+              width: 16px;
+              height: 16px;
+              background: #ef4444;
+              border: 2px solid white;
+              border-radius: 50%;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              animation: pulse-red 1.5s infinite;
+            "></div>
+            <style>
+              @keyframes pulse-red {
+                0%, 100% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.2); opacity: 0.8; }
+              }
+            </style>
+          `,
+          iconSize: [16, 16],
+          iconAnchor: [8, 8],
+        });
+      };
+
+      // Function to fetch and update IoT device location
+      const fetchIoTLocation = async () => {
+        try {
+          const response = await fetch('/api/latest-location');
+          if (response.ok) {
+            const data: IoTDeviceData = await response.json();
+            
+            // Update marker position
+            if (iotMarkerRef.current) {
+              // Animate movement if marker already exists
+              const currentPos = iotMarkerRef.current.getLatLng();
+              const newPos = L.latLng(data.lat, data.lon);
+              
+              // Simple animation for marker movement
+              iotMarkerRef.current.setLatLng(newPos);
+            } else {
+              // Create marker if it doesn't exist
+              iotMarkerRef.current = L.marker([data.lat, data.lon], {
+                icon: createIoTIcon(),
+                zIndexOffset: 1001,
+              }).addTo(map);
+            }
+            
+            // Notify parent component of data update
+            onIoTDataUpdate?.(data);
+          }
+        } catch (error) {
+          console.error('Error fetching IoT location:', error);
+        }
+      };
+
+      // Start polling for IoT location data every 5 seconds
+      iotPollingIntervalRef.current = setInterval(fetchIoTLocation, 5000);
+      // Fetch initial data immediately
+      fetchIoTLocation();
+
       // Listen for recenter events
       const handleRecenter = (event: Event) => {
         const customEvent = event as CustomEvent;
@@ -270,6 +337,16 @@ const MapView = ({ drawMode, onGeofenceCreated, onGeofencesChange, clearTrigger,
         }
         if (locationCircleRef.current) {
           map.removeLayer(locationCircleRef.current);
+        }
+        
+        // Clean up IoT polling
+        if (iotPollingIntervalRef.current) {
+          clearInterval(iotPollingIntervalRef.current);
+        }
+        
+        // Remove IoT marker
+        if (iotMarkerRef.current && mapRef.current) {
+          mapRef.current.removeLayer(iotMarkerRef.current);
         }
       };
     }

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import MapView from '@/components/MapView';
+import type { IoTDeviceData } from '@/types/iot';
 import ControlPanel from '@/components/ControlPanel';
 import ResultsPanel from '@/components/ResultsPanel';
+import IoTDataBox from '@/components/IoTDataBox';
 import { toast } from 'sonner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
@@ -15,6 +17,8 @@ interface GeofenceData {
   };
 }
 
+// Add interface for IoT GPS data
+
 const GPS = () => {
   const [drawMode, setDrawMode] = useState<'circle' | 'polygon' | null>(null);
   const [geofences, setGeofences] = useState<GeofenceData[]>([]);
@@ -23,6 +27,8 @@ const GPS = () => {
   const [highlightGeofenceId, setHighlightGeofenceId] = useState<string | null>(null);
   const [isMapLoading, setIsMapLoading] = useState(true);
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
+  // Add state for IoT device data
+  const [iotData, setIotData] = useState<IoTDeviceData | null>(null);
 
   const handleGeofenceCreated = (geofence: GeofenceData) => {
     toast.success(`${geofence.type === 'circle' ? 'Circle' : 'Polygon'} geofence created!`);
@@ -73,6 +79,11 @@ const GPS = () => {
     setIsMapLoading(false);
   };
 
+  // Handler for IoT data updates
+  const handleIoTDataUpdate = (data: IoTDeviceData) => {
+    setIotData(data);
+  };
+
   const handleSave = () => {
     console.log('=== GEOFENCE BOUNDARY DATA ===');
     geofences.forEach((geofence, index) => {
@@ -116,6 +127,7 @@ const GPS = () => {
             deleteGeofenceId={deleteGeofenceId}
             highlightGeofenceId={highlightGeofenceId}
             onMapReady={handleMapReady}
+            onIoTDataUpdate={handleIoTDataUpdate}
           />
 
           {/* Mobile inline instructions while drawing */}
@@ -174,6 +186,12 @@ const GPS = () => {
 
         {/* Desktop Results Sidebar */}
         <div className="hidden md:block w-96 bg-background border-l border-border p-4 overflow-y-auto">
+          {/* IoT Data Box - Always visible at top */}
+          <div className="mb-4">
+            <IoTDataBox data={iotData} />
+          </div>
+          
+          {/* Geofence Results */}
           <ResultsPanel 
             geofences={geofences} 
             onDelete={handleDelete}
@@ -181,6 +199,11 @@ const GPS = () => {
             highlightedId={highlightGeofenceId}
           />
         </div>
+      </div>
+      
+      {/* Mobile IoT Data Box - Fixed at bottom above controls */}
+      <div className="md:hidden fixed bottom-24 left-4 right-4 z-[1000]">
+        <IoTDataBox data={iotData} />
       </div>
     </div>
   );
