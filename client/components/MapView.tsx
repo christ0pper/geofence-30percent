@@ -25,9 +25,10 @@ interface MapViewProps {
   highlightGeofenceId: string | null;
   onMapReady: () => void;
   onIoTDataUpdate?: (data: IoTDeviceData) => void;
+  iotDeviceData?: IoTDeviceData | null; // Add this new prop
 }
 
-const MapView = ({ drawMode, onGeofenceCreated, onGeofencesChange, clearTrigger, deleteGeofenceId, highlightGeofenceId, onMapReady, onIoTDataUpdate }: MapViewProps) => {
+const MapView = ({ drawMode, onGeofenceCreated, onGeofencesChange, clearTrigger, deleteGeofenceId, highlightGeofenceId, onMapReady, onIoTDataUpdate, iotDeviceData }: MapViewProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
   const activeDrawerRef = useRef<any>(null);
@@ -256,28 +257,31 @@ const MapView = ({ drawMode, onGeofenceCreated, onGeofencesChange, clearTrigger,
 
       // Function to fetch and update IoT device location
       const fetchIoTLocation = async () => {
-        try {
-          const response = await fetch('/api/latest-location');
-          if (response.ok) {
-            const data: IoTDeviceData = await response.json();
-            
-            // Update marker position
-            if (iotMarkerRef.current) {
-              // Simple animation for marker movement
-              iotMarkerRef.current.setLatLng(L.latLng(data.lat, data.lon));
-            } else {
-              // Create marker if it doesn't exist
-              iotMarkerRef.current = L.marker([data.lat, data.lon], {
-                icon: createIoTIcon(),
-                zIndexOffset: 1001,
-              }).addTo(map);
+        // Only fetch from API if no external data is provided
+        if (!iotDeviceData) {
+          try {
+            const response = await fetch('/api/latest-location');
+            if (response.ok) {
+              const data: IoTDeviceData = await response.json();
+              
+              // Update marker position
+              if (iotMarkerRef.current) {
+                // Simple animation for marker movement
+                iotMarkerRef.current.setLatLng(L.latLng(data.lat, data.lon));
+              } else {
+                // Create marker if it doesn't exist
+                iotMarkerRef.current = L.marker([data.lat, data.lon], {
+                  icon: createIoTIcon(),
+                  zIndexOffset: 1001,
+                }).addTo(map);
+              }
+              
+              // Notify parent component of data update
+              onIoTDataUpdate?.(data);
             }
-            
-            // Notify parent component of data update
-            onIoTDataUpdate?.(data);
+          } catch (error) {
+            console.error('Error fetching IoT location:', error);
           }
-        } catch (error) {
-          console.error('Error fetching IoT location:', error);
         }
       };
 
@@ -403,27 +407,58 @@ const MapView = ({ drawMode, onGeofenceCreated, onGeofencesChange, clearTrigger,
       polygonDrawer.enable();
       activeDrawerRef.current = polygonDrawer;
 
-      // Also reduce accidental map moves while placing vertices
+      // Improve touch responsiveness and avoid accidental map moves
+      (map as any).options.inertia = false;
       map.dragging.disable();
       map.touchZoom.disable();
       map.scrollWheelZoom.disable();
     }
-
-    return () => {
-      // Cleanup on unmount or mode change
-      if (activeDrawerRef.current) {
-        try {
-          activeDrawerRef.current.disable();
-        } catch (e) {
-          // Ignore errors during cleanup
-        }
-      }
-      // Re-enable interactions when leaving draw mode
-      map.dragging.enable();
-      map.touchZoom.enable();
-      map.scrollWheelZoom.enable();
-    };
   }, [drawMode]);
+
+  // Handle IoT device data updates
+  useEffect(() => {
+    if (iotDeviceData && mapRef.current) {
+      // Update IoT marker when new data is available
+      if (iotMarkerRef.current) {
+        iotMarkerRef.current.setLatLng(L.latLng(iotDeviceData.lat, iotDeviceData.lon));
+      } else {
+        // Create marker if it doesn't exist
+        const map = mapRef.current;
+        const createIoTIcon = () => {
+          return L.divIcon({
+            className: 'iot-marker',
+            html: `
+              <div style="
+                width: 16px;
+                height: 16px;
+                background: #ef4444;
+                border: 2px solid white;
+                border-radius: 50%;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                animation: pulse-red 1.5s infinite;
+              "></div>
+              <style>
+                @keyframes pulse-red {
+                  0%, 100% { transform: scale(1); opacity: 1; }
+                  50% { transform: scale(1.2); opacity: 0.8; }
+                }
+              </style>
+            `,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8],
+          });
+        };
+        
+        iotMarkerRef.current = L.marker([iotDeviceData.lat, iotDeviceData.lon], {
+          icon: createIoTIcon(),
+          zIndexOffset: 1001,
+        }).addTo(map);
+      }
+      
+      // Notify parent component of data update
+      onIoTDataUpdate?.(iotDeviceData);
+    }
+  }, [iotDeviceData, onIoTDataUpdate]);
 
   // Handle clear all
   useEffect(() => {

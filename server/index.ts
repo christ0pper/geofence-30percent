@@ -61,7 +61,7 @@ export function createServer() {
   });
   
   // Add endpoint for IoT device location data (GET)
-  app.get("/api/latest-location", (_req, res) => {
+  /*app.get("/api/latest-location", (_req, res) => {
     if (!latestLocationData) {
       // If no real data, return mock data
       const mockData = {
@@ -87,7 +87,7 @@ export function createServer() {
     };
     
     res.json(transformedData);
-  });
+  });*/
 
   return app;
 }

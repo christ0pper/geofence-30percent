@@ -15,6 +15,8 @@ interface IoTDataBoxProps {
 }
 
 const IoTDataBox = ({ data }: IoTDataBoxProps) => {
+  console.log('IoTDataBox received data:', data);
+  
   if (!data) {
     return (
       <Card className="w-full">
