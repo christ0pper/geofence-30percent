@@ -18,9 +18,10 @@ interface ResultsPanelProps {
   onDelete: (id: string) => void;
   onHighlight: (id: string | null) => void;
   highlightedId: string | null;
+  geofenceStatus?: Record<string, boolean>; // Add this prop to show inside/outside status
 }
 
-const ResultsPanel = ({ geofences, onDelete, onHighlight, highlightedId }: ResultsPanelProps) => {
+const ResultsPanel = ({ geofences, onDelete, onHighlight, highlightedId, geofenceStatus = {} }: ResultsPanelProps) => {
   if (geofences.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -48,6 +49,12 @@ const ResultsPanel = ({ geofences, onDelete, onHighlight, highlightedId }: Resul
                   <Badge variant={geofence.type === 'circle' ? 'default' : 'secondary'}>
                     {geofence.type === 'circle' ? 'Circle' : 'Polygon'} #{index + 1}
                   </Badge>
+                  {/* Show inside/outside status */}
+                  {geofenceStatus[geofence.id] !== undefined && (
+                    <Badge variant={geofenceStatus[geofence.id] ? 'default' : 'destructive'}>
+                      {geofenceStatus[geofence.id] ? 'INSIDE' : 'OUTSIDE'}
+                    </Badge>
+                  )}
                 </div>
                 <Button
                   variant="ghost"

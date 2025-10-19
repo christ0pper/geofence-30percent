@@ -357,6 +357,7 @@ const GPS = () => {
                     onDelete={handleDelete}
                     onHighlight={setHighlightGeofenceId}
                     highlightedId={highlightGeofenceId}
+                    geofenceStatus={geofenceStatus} // Pass the geofence status
                   />
                 </div>
               </SheetContent>
@@ -388,6 +389,7 @@ const GPS = () => {
             onDelete={handleDelete}
             onHighlight={setHighlightGeofenceId}
             highlightedId={highlightGeofenceId}
+            geofenceStatus={geofenceStatus} // Pass the geofence status
           />
         </div>
       </div>
